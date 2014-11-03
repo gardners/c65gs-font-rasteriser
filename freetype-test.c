@@ -109,7 +109,7 @@ main( int     argc,
     int x,y;
 
     printf("y range = %d..%d\n",char_rows-1,-under_rows);
-    for(y=under_rows;y<char_rows;y++)
+    for(y=-under_rows;y<char_rows;y++)
       for(x=0;x<char_columns;x++)
 	{
 	  printf("  encoding card (%d,%d)\n",x,y);
@@ -147,8 +147,8 @@ int encode_card(FT_GlyphSlot  slot,int card_x, int card_y)
 	{
 	  int x_pos=x+base_x-min_x;
 	  int y_pos=slot->bitmap_top-((7-y)+base_y);
-	  printf("pixel (%d,%d) will be in bitmap (%d,%d)\n",
-		 x,y,x_pos,y_pos);
+	  //	  printf("pixel (%d,%d) will be in bitmap (%d,%d)\n",
+	  //             x,y,x_pos,y_pos);
 	  if ((x_pos>=0&&x_pos<slot->bitmap.width)
 	      &&(y_pos>=0&&y_pos<slot->bitmap.rows)) {
 	    // Pixel is in bitmap
