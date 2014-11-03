@@ -10,12 +10,14 @@ int unicode_points[MAX_POINTS]={
   0
 };
 int glyph_count=0;
+int rendered=0;
 
 #define MAX_CARDS 65536
 int card_count=0;
 unsigned char cards[MAX_CARDS][64];
 int card_reused[MAX_CARDS]={0};
 int reuses=0;
+
 
 int encode_card(FT_GlyphSlot  slot,int card_x, int card_y);
 
@@ -85,10 +87,12 @@ main( int     argc,
     if ( error )
       continue;                 /* ignore errors */
 
+    rendered++;
+
     /* now, draw to our target surface (convert position) */
     printf("Rendering U+%04x\n",unicode_points[n]);
-    printf("bitmap_left=%d, bitmap_top=%d\n", slot->bitmap_left, slot->bitmap_top);
-    printf("bitmap_width=%d, bitmap_rows=%d\n", slot->bitmap.width, slot->bitmap.rows);
+    //    printf("bitmap_left=%d, bitmap_top=%d\n", slot->bitmap_left, slot->bitmap_top);
+    //    printf("bitmap_width=%d, bitmap_rows=%d\n", slot->bitmap.width, slot->bitmap.rows);
     int char_rows=0,char_columns=0;
     int under_rows=0,under_columns=0;
     int blank_pixels_to_left=slot->bitmap_left;
@@ -98,8 +102,8 @@ main( int     argc,
       if (slot->bitmap_top%8) char_rows++;
       char_columns=(slot->bitmap_left+slot->bitmap.width)/8;
       if ((slot->bitmap_left+slot->bitmap.width)%8) char_columns++;
-      printf("Character is %dx%d cards above, and includes %d pixels to the left.\n",
-	     char_columns,char_rows,blank_pixels_to_left);
+      if (0) printf("Character is %dx%d cards above, and includes %d pixels to the left.\n",
+		    char_columns,char_rows,blank_pixels_to_left);
     }
     if (slot->bitmap_top-slot->bitmap.rows<0) {
       // Character has underhang as well
@@ -108,20 +112,20 @@ main( int     argc,
       if (underhang%8) under_rows++;
       under_columns=(slot->bitmap_left+slot->bitmap.width)/8;
       if ((slot->bitmap_left+slot->bitmap.width)%8) under_columns++;
-      printf("Character is %dx%d cards under, and includes %d pixels to the left.\n",
+      if (0) printf("Character is %dx%d cards under, and includes %d pixels to the left.\n",
 	     under_columns,under_rows,blank_pixels_to_left);
     }
 
     int x,y;
 
-    printf("y range = %d..%d\n",char_rows-1,-under_rows);
+    // printf("y range = %d..%d\n",char_rows-1,-under_rows);
     for(y=-under_rows;y<char_rows;y++)
       for(x=0;x<char_columns;x++)
 	{
-	  printf("  encoding card (%d,%d)\n",x,y);
 	  int card_number=encode_card(slot,x,y);
+	  printf("  encoding tile (%d,%d) using card #%d\n",x,y,card_number);
 	}
-    printf("done\n");
+    // printf("done\n");
   }
 
   FT_Done_Face    ( face );
@@ -129,8 +133,8 @@ main( int     argc,
 
   int unique_reused=0;
   for(i=0;i<card_count;i++) if (card_reused[i]) unique_reused++;
-  printf("%d Unique cards were used %d times (%d more than once) to encode %d glyphs\n",
-	 card_count,card_count+reuses,unique_reused,glyph_count);
+  printf("%d Unique cards were used %d times (%d more than once) to encode %d of %d requested glyphs\n",
+	 card_count,card_count+reuses,unique_reused,rendered,glyph_count);
 
   return 0;
 }
@@ -147,8 +151,8 @@ int encode_card(FT_GlyphSlot  slot,int card_x, int card_y)
   int base_x=card_x*8;
   int base_y=card_y*8;
 
-  printf("x=%d..%d, y=%d..%d, base=(%d,%d)\n",
-	 min_x,max_x,min_y,max_y,base_x,base_y);
+  if (0) printf("x=%d..%d, y=%d..%d, base=(%d,%d)\n",
+		min_x,max_x,min_y,max_y,base_x,base_y);
   
   unsigned char card[64];
 
@@ -172,18 +176,20 @@ int encode_card(FT_GlyphSlot  slot,int card_x, int card_y)
 	}
   }
 
-  printf("card (%d,%d) is:\n",card_x,card_y);
-  for(y=0;y<8;y++) {
-    for(x=0;x<8;x++)
-      {
-	if (card[x+y*8]==0) 
-	  printf(".");
-	else if (card[x+y*8]<128) 
-	  printf("+");
-	else
-	  printf("*");
-      }
-    printf("\n");
+  if (0) {
+    printf("card (%d,%d) is:\n",card_x,card_y);
+    for(y=0;y<8;y++) {
+      for(x=0;x<8;x++)
+	{
+	  if (card[x+y*8]==0) 
+	    printf(".");
+	  else if (card[x+y*8]<128) 
+	    printf("+");
+	  else
+	    printf("*");
+	}
+      printf("\n");
+    }
   }
 
   // Now compare card with all previous ones
@@ -191,7 +197,7 @@ int encode_card(FT_GlyphSlot  slot,int card_x, int card_y)
   for(c=0;c<card_count;c++)
     {
       if (!bcmp(card,cards[c],64)) {
-	printf("Re-using card #%d\n",c);
+	// printf("Re-using card #%d\n",c);
 	reuses++;
 	card_reused[c]++;
 	return c;
@@ -200,7 +206,7 @@ int encode_card(FT_GlyphSlot  slot,int card_x, int card_y)
 
   // Store card if necessary
   if (card_count>=MAX_CARDS) return -1;
-  printf("Creating card #%d\n",card_count);
+  //  printf("Creating card #%d\n",card_count);
   card_reused[card_count]=0;
   bcopy(card,cards[card_count++],64);
   return card_count-1;
