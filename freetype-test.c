@@ -14,6 +14,7 @@ int glyph_count=0;
 #define MAX_CARDS 65536
 int card_count=0;
 unsigned char cards[MAX_CARDS][64];
+int card_reused[MAX_CARDS]={0};
 int reuses=0;
 
 int encode_card(FT_GlyphSlot  slot,int card_x, int card_y);
@@ -126,8 +127,10 @@ main( int     argc,
   FT_Done_Face    ( face );
   FT_Done_FreeType( library );
 
-  printf("%d Unique cards were used %d times to encode %d glyphs\n",
-	 card_count,card_count+reuses,glyph_count);
+  int unique_reused=0;
+  for(i=0;i<card_count;i++) if (card_reused[i]) unique_reused++;
+  printf("%d Unique cards were used %d times (%d more than once) to encode %d glyphs\n",
+	 card_count,card_count+reuses,unique_reused,glyph_count);
 
   return 0;
 }
@@ -190,6 +193,7 @@ int encode_card(FT_GlyphSlot  slot,int card_x, int card_y)
       if (!bcmp(card,cards[c],64)) {
 	printf("Re-using card #%d\n",c);
 	reuses++;
+	card_reused[c]++;
 	return c;
       }
     }
@@ -197,6 +201,7 @@ int encode_card(FT_GlyphSlot  slot,int card_x, int card_y)
   // Store card if necessary
   if (card_count>=MAX_CARDS) return -1;
   printf("Creating card #%d\n",card_count);
+  card_reused[card_count]=0;
   bcopy(card,cards[card_count++],64);
   return card_count-1;
 }
