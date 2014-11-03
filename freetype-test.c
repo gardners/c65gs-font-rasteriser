@@ -11,6 +11,8 @@ int unicode_points[MAX_POINTS]={
 };
 int glyph_count=0;
 
+int encode_card(FT_GlyphSlot  slot,int card_x, int card_y);
+
 int
 main( int     argc,
       char**  argv )
@@ -78,14 +80,17 @@ main( int     argc,
       continue;                 /* ignore errors */
 
     /* now, draw to our target surface (convert position) */
+    printf("Rendering U+%04x\n",unicode_points[n]);
     printf("bitmap_left=%d, bitmap_top=%d\n", slot->bitmap_left, slot->bitmap_top);
     printf("bitmap_width=%d, bitmap_rows=%d\n", slot->bitmap.width, slot->bitmap.rows);
+    int char_rows=0,char_columns=0;
+    int under_rows=0,under_columns=0;
     int blank_pixels_to_left=slot->bitmap_left;
     if (blank_pixels_to_left<0) blank_pixels_to_left=0;
     if (slot->bitmap_top>=0) {
-      int char_rows=slot->bitmap_top/8;
+      char_rows=slot->bitmap_top/8;
       if (slot->bitmap_top%8) char_rows++;
-      int char_columns=(slot->bitmap_left+slot->bitmap.width)/8;
+      char_columns=(slot->bitmap_left+slot->bitmap.width)/8;
       if ((slot->bitmap_left+slot->bitmap.width)%8) char_columns++;
       printf("Character is %dx%d cards above, and includes %d pixels to the left.\n",
 	     char_columns,char_rows,blank_pixels_to_left);
@@ -93,34 +98,82 @@ main( int     argc,
     if (slot->bitmap_top-slot->bitmap.rows<0) {
       // Character has underhang as well
       int underhang=slot->bitmap.rows-slot->bitmap_top;
-      int under_rows=underhang/8;
+      under_rows=underhang/8;
       if (underhang%8) under_rows++;
-      int under_columns=(slot->bitmap_left+slot->bitmap.width)/8;
+      under_columns=(slot->bitmap_left+slot->bitmap.width)/8;
       if ((slot->bitmap_left+slot->bitmap.width)%8) under_columns++;
       printf("Character is %dx%d cards under, and includes %d pixels to the left.\n",
 	     under_columns,under_rows,blank_pixels_to_left);
     }
-    
 
     int x,y;
-    for(y=0;y<slot->bitmap.rows;y++) {
-      for(x=0;x<slot->bitmap.width;x++)
-	{
-	  if (slot->bitmap.buffer[x+y*slot->bitmap.width]==0) 
-	    printf(" ");
-	  else if (slot->bitmap.buffer[x+y*slot->bitmap.width]<128) 
-	    printf("+");
-	  else
-	    printf("*");
-	}
-      printf("\n");
-    }
 
+    printf("y range = %d..%d\n",char_rows-1,-under_rows);
+    for(y=under_rows;y<char_rows;y++)
+      for(x=0;x<char_columns;x++)
+	{
+	  printf("  encoding card (%d,%d)\n",x,y);
+	  int card_number=encode_card(slot,x,y);
+	}
+    printf("done\n");
   }
 
   FT_Done_Face    ( face );
   FT_Done_FreeType( library );
 
+  return 0;
+}
+
+int encode_card(FT_GlyphSlot  slot,int card_x, int card_y)
+{
+  int min_x=slot->bitmap_left;
+  if (min_x<0) min_x=0;
+  int max_x=slot->bitmap.width+min_x;
+
+  int max_y=slot->bitmap_top-1;
+  int min_y=slot->bitmap_top-1-slot->bitmap.rows;
+
+  int base_x=card_x*8;
+  int base_y=card_y*8;
+
+  printf("x=%d..%d, y=%d..%d, base=(%d,%d)\n",
+	 min_x,max_x,min_y,max_y,base_x,base_y);
+  
+  unsigned char card[64];
+
+  int x,y;
+  for(y=0;y<8;y++) {
+      for(x=0;x<8;x++)
+	{
+	  int x_pos=x+base_x-min_x;
+	  int y_pos=slot->bitmap_top-((7-y)+base_y);
+	  printf("pixel (%d,%d) will be in bitmap (%d,%d)\n",
+		 x,y,x_pos,y_pos);
+	  if ((x_pos>=0&&x_pos<slot->bitmap.width)
+	      &&(y_pos>=0&&y_pos<slot->bitmap.rows)) {
+	    // Pixel is in bitmap
+	    card[y*8+x]=slot->bitmap.buffer[x_pos+
+					    y_pos*slot->bitmap.width];
+	  } else {
+	    // Pixel is not in bitmap, so blank pixel
+	    card[y*8+x]=0x00;
+	  }
+	}
+  }
+
+  printf("card (%d,%d) is:\n",card_x,card_y);
+  for(y=0;y<8;y++) {
+    for(x=0;x<8;x++)
+      {
+	if (card[x+y*8]==0) 
+	  printf(".");
+	else if (card[x+y*8]<128) 
+	  printf("+");
+	else
+	  printf("*");
+      }
+    printf("\n");
+  }
   return 0;
 }
 
