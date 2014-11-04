@@ -18,6 +18,26 @@ unsigned char cards[MAX_CARDS][64];
 int card_reused[MAX_CARDS]={0};
 int reuses=0;
 
+unsigned char magic_header[128]=
+  {
+    0x00, 0x2d, 0x08, 0x0a, 0x00, 0x99, 0x22, 0x54, 
+    0x48, 0x49, 0x53, 0x20, 0x49, 0x53, 0x20, 0x41,
+    0x20, 0x43, 0x36, 0x35, 0x47, 0x53, 0x20, 0x38, 
+    0x42, 0x50, 0x50, 0x20, 0x46, 0x4f, 0x4e, 0x54,
+    0x20, 0x46, 0x49, 0x4c, 0x45, 0x2c, 0x20, 0x56, 
+    0x31, 0x2e, 0x30, 0x22, 0x00, 0x55, 0x08, 0x14,
+    0x00, 0x99, 0x22, 0x53, 0x45, 0x45, 0x20, 0x48, 
+    0x54, 0x54, 0x50, 0x3a, 0x2f, 0x2f, 0x43, 0x36,
+    0x35, 0x47, 0x53, 0x2e, 0x42, 0x4c, 0x4f, 0x47, 
+    0x53, 0x50, 0x4f, 0x54, 0x2e, 0x43, 0x4f, 0x4d,
+    0x2e, 0x41, 0x55, 0x22, 0x00, 0x72, 0x08, 0x1e, 
+    0x00, 0x99, 0x22, 0x46, 0x4f, 0x52, 0x20, 0x4d,
+    0x4f, 0x52, 0x45, 0x20, 0x49, 0x4e, 0x46, 0x4f, 
+    0x52, 0x4d, 0x41, 0x54, 0x49, 0x4f, 0x4e, 0x2e,
+    0x22, 0x00, 0x78, 0x08, 0x28, 0x00, 0x80, 0x00, 
+    0x00, 0x00, 0xff, 0xff, 0xff, 0xff
+  };
+
 unsigned char font_data[16*1024*1024];
 unsigned char tile_map_buffer[16*1024*1024];
 int tile_map_offset=0;
@@ -54,7 +74,6 @@ main( int     argc,
   char*         text;
 
   int           n, num_chars;
-
 
   if ( argc < 3 )
   {
@@ -162,11 +181,10 @@ main( int     argc,
     rendered++;
   }
 
-  FT_Done_Face    ( face );
-  FT_Done_FreeType( library );
-
   // Now that we know how many glyphs are in the font, write this and other 
   // info into the header
+
+  bcopy(magic_header,font_data,sizeof magic_header);
 
   // Glyph count at $0080-$0081
   font_data[0x80]=rendered&0xff;
@@ -186,6 +204,28 @@ main( int     argc,
   // Copy tiles into place
   for(i=0;i<card_count;i++) bcopy(cards[i],&font_data[tile_array_start+i*64],64);
   int font_file_size=tile_array_start+64*card_count;
+  int font_points=atoi(argv[2]);
+  font_data[0x87]=font_points&0xff;
+  font_data[0x88]=(font_points>>8)&0xff;
+  // 8 bits per pixel
+  font_data[0x89]=8;
+  // slant, bold, underline and other flags (2 bytes allowed)
+  font_data[0x8a]=face->style_flags&0xff;
+  font_data[0x8b]=(face->style_flags>>8)&0xff;
+  
+  // $00A0-$00BF - style (eg bold, italic, condensed) of font
+  if (face->style_name) {
+    for(i=0;i<32;i++)
+      if (face->style_name[i]) font_data[0xa0+i]=face->style_name[i];
+      else break;
+  }
+
+  // $00c0 - $00ff - name of font (upto 64 bytes)
+  if (face->family_name) {
+    for(i=0;i<64;i++)
+      if (face->family_name[i]) font_data[0xc0+i]=face->family_name[i];
+      else break;
+  }
 
   int unique_reused=0;
   for(i=0;i<card_count;i++) if (card_reused[i]) unique_reused++;
@@ -195,6 +235,25 @@ main( int     argc,
   printf("Tile array start = %d ($%x)\n",tile_array_start,tile_array_start);
   printf("Tile array size = %d ($%x)\n",64*card_count,64*card_count);
   printf("Total font file size = %d ($%x)\n",font_file_size,font_file_size);
+
+  if (argv[3]) {
+    FILE *f=fopen(argv[3],"w");
+    if (!f) {
+      printf("Failed to open font output file '%s'\n",argv[3]);
+      exit(-1);
+    }
+    unsigned char oh8oh1[2]={0x01,0x08};
+    fwrite(oh8oh1,2,1,f);
+    int r=fwrite(font_data,font_file_size,1,f);
+    if (r!=1) {
+      printf("Failed to write font data to '%s'\n",argv[3]);
+      exit(-1);
+    }
+    fclose(f);    
+  }
+
+  FT_Done_Face    ( face );
+  FT_Done_FreeType( library );
 
   return 0;
 }
