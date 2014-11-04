@@ -200,8 +200,10 @@ main( int     argc,
   font_data[0x83]=(tile_map_start>>8)&0xff;
   // Copy tile map into place
   bcopy(&tile_map_buffer[0],&font_data[tile_map_start],tile_map_offset);
-  // Tile array
+  // Tile array (must be on a 64 byte boundary so that glyphs can be used in-place
+  // if font file is loaded at a page boundary).
   int tile_array_start=tile_map_start + tile_map_offset;
+  if (tile_array_start&63) tile_array_start+=63-(tile_array_start&63);
   font_data[0x84]=tile_array_start&0xff;
   font_data[0x85]=(tile_array_start>>8)&0xff;
   font_data[0x86]=(tile_array_start>>16)&0xff;
