@@ -147,7 +147,10 @@ main( int     argc,
     glyph_tile_map[gtm_len++]=char_rows;
     glyph_tile_map[gtm_len++]=under_rows;
     glyph_tile_map[gtm_len++]=char_columns;
-    glyph_tile_map[gtm_len++]=blank_pixels_to_left;
+
+    // Record number of pixels to trim from right-most tile
+    glyph_tile_map[gtm_len++]=(~slot->bitmap.width)&7;  
+
     // Now build the glyph map
 
     for(y=-under_rows;y<char_rows;y++)
