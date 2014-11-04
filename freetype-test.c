@@ -18,6 +18,9 @@ unsigned char cards[MAX_CARDS][64];
 int card_reused[MAX_CARDS]={0};
 int reuses=0;
 
+unsigned char font_data[16*1024*1024];
+unsigned char tile_map_buffer[16*1024*1024];
+int tile_map_offset=0;
 
 int encode_card(FT_GlyphSlot  slot,int card_x, int card_y);
 
@@ -87,8 +90,6 @@ main( int     argc,
     if ( error )
       continue;                 /* ignore errors */
 
-    rendered++;
-
     /* now, draw to our target surface (convert position) */
     printf("Rendering U+%04x\n",unicode_points[n]);
     //    printf("bitmap_left=%d, bitmap_top=%d\n", slot->bitmap_left, slot->bitmap_top);
@@ -119,22 +120,81 @@ main( int     argc,
     int x,y;
 
     // printf("y range = %d..%d\n",char_rows-1,-under_rows);
+    
+    unsigned char glyph_tile_map[3+(2*(256*256))];
+    int gtm_len=0;
+
+    // Record size of character map
+    glyph_tile_map[gtm_len++]=char_rows;
+    glyph_tile_map[gtm_len++]=under_rows;
+    glyph_tile_map[gtm_len++]=char_columns;
+    // Now build the glyph map
+
     for(y=-under_rows;y<char_rows;y++)
       for(x=0;x<char_columns;x++)
 	{
 	  int card_number=encode_card(slot,x,y);
-	  printf("  encoding tile (%d,%d) using card #%d\n",x,y,card_number);
+	  if (card_number<0||card_number>4095) {
+	    printf("Ran out of tiles.\n");
+	    exit(-1);
+	  } else {
+	    printf("  encoding tile (%d,%d) using card #%d\n",x,y,card_number);	  
+	    glyph_tile_map[gtm_len++]=card_number&0xff;	  
+	    glyph_tile_map[gtm_len++]=(card_number>>8)&0xff;	  
+	  }
 	}
-    // printf("done\n");
+    printf("  %d bytes used for glyph map.\n",gtm_len);
+
+    // Write unicode point into list
+    font_data[0x100 + rendered*5 + 0] = unicode_points[n]&0xff;
+    font_data[0x100 + rendered*5 + 1] = (unicode_points[n]>>8)&0xff;
+    // Followed by address of tile map
+    font_data[0x100 + rendered*5 + 2] = tile_map_offset&0xff;
+    font_data[0x100 + rendered*5 + 3] = (tile_map_offset>>8)&0xff;
+    font_data[0x100 + rendered*5 + 4] = (tile_map_offset>>16)&0xff;
+    // Now append tile map to temporary buffer until we write the whole thing out
+    if (tile_map_offset+gtm_len>sizeof tile_map_buffer) {
+      printf("Glyph tile map too large.\n");
+    }
+    bcopy(&glyph_tile_map[0],&tile_map_buffer[tile_map_offset],gtm_len);
+    tile_map_offset+=gtm_len;
+    
+    rendered++;
   }
 
   FT_Done_Face    ( face );
   FT_Done_FreeType( library );
 
+  // Now that we know how many glyphs are in the font, write this and other 
+  // info into the header
+
+  // Glyph count at $0080-$0081
+  font_data[0x80]=rendered&0xff;
+  font_data[0x81]=(rendered>>8)&0xff;
+  // Tile map start at $0082-$0083.
+  // 16-bit offset limits number of glyphs in a font to (64K-256)/5 = quite a few
+  int tile_map_start=0x100+5*rendered;
+  font_data[0x82]=tile_map_start&0xff;
+  font_data[0x83]=(tile_map_start>>8)&0xff;
+  // Copy tile map into place
+  bcopy(&tile_map_buffer[0],&font_data[tile_map_start],tile_map_offset);
+  // Tile array
+  int tile_array_start=tile_map_start + tile_map_offset;
+  font_data[0x84]=tile_array_start&0xff;
+  font_data[0x85]=(tile_array_start>>8)&0xff;
+  font_data[0x86]=(tile_array_start>>16)&0xff;
+  // Copy tiles into place
+  for(i=0;i<card_count;i++) bcopy(cards[i],&font_data[tile_array_start+i*64],64);
+  int font_file_size=tile_array_start+64*card_count;
+
   int unique_reused=0;
   for(i=0;i<card_count;i++) if (card_reused[i]) unique_reused++;
   printf("%d Unique cards were used %d times (%d more than once) to encode %d of %d requested glyphs\n",
 	 card_count,card_count+reuses,unique_reused,rendered,glyph_count);
+  printf("Tile map start = %d ($%x)\n",tile_map_start,tile_map_start);
+  printf("Tile array start = %d ($%x)\n",tile_array_start,tile_array_start);
+  printf("Tile array size = %d ($%x)\n",64*card_count,64*card_count);
+  printf("Total font file size = %d ($%x)\n",font_file_size,font_file_size);
 
   return 0;
 }
