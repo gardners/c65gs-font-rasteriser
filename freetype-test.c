@@ -59,7 +59,7 @@ main( int     argc,
   // Hebrew alphabet
   for(i=0x5d0;i<=0x5f4;i++) unicode_points[cn++]=i;
   // Maths
-  for(i=0x2200;i<=0x22ff;i++) unicode_points[cn++]=i;
+  // for(i=0x2200;i<=0x22ff;i++) unicode_points[cn++]=i;
   printf("Defined %d unicode points\n",cn);
   glyph_count=cn;
 
@@ -147,6 +147,7 @@ main( int     argc,
     glyph_tile_map[gtm_len++]=char_rows;
     glyph_tile_map[gtm_len++]=under_rows;
     glyph_tile_map[gtm_len++]=char_columns;
+    glyph_tile_map[gtm_len++]=blank_pixels_to_left;
     // Now build the glyph map
 
     for(y=-under_rows;y<char_rows;y++)
