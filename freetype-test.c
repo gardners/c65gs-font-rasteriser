@@ -122,6 +122,7 @@ main( int     argc,
       if (slot->bitmap_top%8) char_rows++;
       char_columns=(slot->bitmap_left+slot->bitmap.width)/8;
       if ((slot->bitmap_left+slot->bitmap.width)%8) char_columns++;
+      if (!char_columns) { char_columns=1; char_rows=1; }
       if (0) printf("Character is %dx%d cards above, and includes %d pixels to the left.\n",
 		    char_columns,char_rows,blank_pixels_to_left);
     }
@@ -148,8 +149,16 @@ main( int     argc,
     glyph_tile_map[gtm_len++]=under_rows;
     glyph_tile_map[gtm_len++]=char_columns;
 
+    // Work out horizontal width of the glyph
+    int glyph_display_width=slot->bitmap.width;
+    if (glyph_display_width==0)
+      glyph_display_width=(slot->metrics.horiAdvance/64);
+    printf("glyph display width = %d\n",glyph_display_width);
+    printf("horiAdvance = %d, char_columns=%d\n",
+	   (int)slot->metrics.horiAdvance,char_columns);
+    
     // Record number of pixels to trim from right-most tile
-    glyph_tile_map[gtm_len++]=(~slot->bitmap.width)&7;  
+    glyph_tile_map[gtm_len++]=(~glyph_display_width)&7;  
 
     // Now build the glyph map
 
