@@ -118,13 +118,13 @@ main( int     argc,
     int blank_pixels_to_left=slot->bitmap_left;
     if (blank_pixels_to_left<0) blank_pixels_to_left=0;
     if (slot->bitmap_top>=0) {
-      char_rows=slot->bitmap_top/8;
-      if (slot->bitmap_top%8) char_rows++;
+      char_rows=(slot->bitmap_top+1)/8;
+      if ((slot->bitmap_top+1)%8) char_rows++;
       char_columns=(slot->bitmap_left+slot->bitmap.width)/8;
       if ((slot->bitmap_left+slot->bitmap.width)%8) char_columns++;
       if (!char_columns) { char_columns=1; char_rows=1; }
-      if (0) printf("Character is %dx%d cards above, and includes %d pixels to the left.\n",
-		    char_columns,char_rows,blank_pixels_to_left);
+      if (0) printf("Character is %dx%d cards above, and includes %d pixels to the left. bitmap_top=%d\n",
+		    char_columns,char_rows,blank_pixels_to_left,slot->bitmap_top);
     }
     if (slot->bitmap_top-slot->bitmap.rows<0) {
       // Character has underhang as well
