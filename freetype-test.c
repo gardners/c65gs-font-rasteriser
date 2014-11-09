@@ -162,7 +162,7 @@ main( int     argc,
 
     // Now build the glyph map
 
-    for(y=-under_rows;y<char_rows;y++)
+    for(y=char_rows-1;y>=-under_rows;y--)
       for(x=0;x<char_columns;x++)
 	{
 	  int card_number=encode_card(slot,x,y);
