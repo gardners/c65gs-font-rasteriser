@@ -54,11 +54,10 @@ main( int     argc,
   // normal ASCII characters
   for(i=0x20;i<=0x7e;i++) unicode_points[cn++]=i;
   // Latin extended characters
-  //  for(i=0xa1;i<=0xac;i++) unicode_points[cn++]=i;
-  //  for(i=0xae;i<=0xff;i++) unicode_points[cn++]=i;
+  for(i=0xa1;i<=0xac;i++) unicode_points[cn++]=i;
+  for(i=0xae;i<=0xff;i++) unicode_points[cn++]=i;
   // Hebrew alphabet
-  //  for(i=0x5d0;i<=0x5f4;i++) unicode_points[cn++]=i;
-  for(i=0x5d0;i<=0x5d7;i++) unicode_points[cn++]=i;
+  for(i=0x5d0;i<=0x5f4;i++) unicode_points[cn++]=i;
   // Maths
   // for(i=0x2200;i<=0x22ff;i++) unicode_points[cn++]=i;
   printf("Defined %d unicode points\n",cn);
