@@ -150,7 +150,7 @@ main( int     argc,
     glyph_tile_map[gtm_len++]=char_columns;
 
     // Work out horizontal width of the glyph
-    int glyph_display_width=slot->bitmap.width;
+    int glyph_display_width=slot->bitmap_left+slot->bitmap.width;
     if (glyph_display_width==0)
       glyph_display_width=(slot->metrics.horiAdvance/64);
     printf("glyph display width = %d\n",glyph_display_width);
