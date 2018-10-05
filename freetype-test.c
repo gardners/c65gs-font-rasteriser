@@ -74,7 +74,7 @@ main( int     argc,
   char*         filename;
   char*         text;
 
-  int           n, num_chars;
+  int           n;
 
   if ( argc < 3 )
   {
@@ -84,7 +84,6 @@ main( int     argc,
 
   filename      = argv[1];                           /* first argument     */
   text          = (argc==3)?"Q":argv[3];
-  num_chars     = strlen( text );
 
   error = FT_Init_FreeType( &library );              /* initialize library */
   /* error handling omitted */
