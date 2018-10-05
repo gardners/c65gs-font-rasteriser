@@ -1,11 +1,13 @@
 #include <stdio.h>
 #include <string.h>
 #include <math.h>
-
 #include <ft2build.h>
 #include FT_FREETYPE_H
+#include <unistd.h>
 
-#define MAX_POINTS 1024
+#include "utf8_decode.h"
+
+#define MAX_POINTS 16384
 int unicode_points[MAX_POINTS]={
   0
 };
@@ -44,25 +46,98 @@ int tile_map_offset=0;
 
 int encode_card(FT_GlyphSlot  slot,int card_x, int card_y);
 
+void usage(void)
+{
+  fprintf ( stderr,
+	    "usage: ttftof65 [-A] [-8 <utf8 text file>] [-T <TTF file>] [-P <point size for rasterised font>] [-o <output file>]\n"
+	    "    -A - Include all normal ASCII characters in the rasterised font.\n"
+	    "    -8 - Include all code points used in the indicated UTF8 text file.\n"
+	    "    -T - Specify the TTF source file.\n"
+	    "    -P - Point size of rasterised output.\n"
+	    "    -o - Name of rasterised MEGA65 font file for output.\n");
+  exit( 1 );
+}
+
+int add_code_point(int point)
+{
+  // Don't insert duplicates
+  for(int i=0;i<glyph_count;i++) {
+    if (point==unicode_points[i]) return 0;
+  }
+
+  if (glyph_count>=MAX_POINTS) {
+    fprintf(stderr,"ERROR: Too many unicode points specified. Consider increaseing MAX_POINTS, or reduce number of points required in font.\n");
+    exit(-1);
+  }
+
+  unicode_points[glyph_count++]=point;
+  return 0;
+}
+
 int
 main( int     argc,
       char**  argv )
 {
+  int opt;
+  char*         filename = NULL;
+  char*         output_file = NULL;
+  int           font_size=8;
+  
+  while ((opt = getopt(argc, argv, "A8:T:P:o:")) != -1) {
+    switch (opt) {
+    case 'A':
+      // Add ascii code points
+      for(int i=0x20;i<0x7f;i++) add_code_point(i);
+      break;
+    case 'P':
+      font_size=atoi(optarg);
+      if (font_size<1||font_size>200) {
+	fprintf(stderr,"Illegal point size. Must be between 1 and 200.\n");
+	usage();
+      }
+      break;
+    case 'T':
+      filename = optarg;
+      break;
+    case 'o':
+      output_file = optarg;
+      break;
+    case '8':
+      /* Read UTF8 text file to get a set of points to read it from */
+      {
+	FILE *f=fopen(optarg,"r");
+	if (!f) {
+	  fprintf(stderr,"Could not open '%s' for reading UTF8 text.\n",optarg);
+	  usage();
+	}
+	char line[1024];
+	line[0]=0; fgets(line,1024,f);
+	while (line[0]) {
+	  utf8_decode_init(line,strlen(line));
+	  int code_point=utf8_decode_next();
+	  while ((code_point!=UTF8_END)&&(code_point!=UTF8_ERROR))
+	    {
+	      add_code_point(code_point);
+	      code_point=utf8_decode_next();
+	    }
+	  line[0]=0; fgets(line,1024,f);
+	}
+	fclose(f);
+      }
+      break;
+    default: /* '?' */
+      fprintf(stderr,"Unknown option character '%c'\n",opt);
+      usage();
+    }
+  }  
+
+  if (!filename) { fprintf(stderr,"No TTF file specified.\n"); usage(); }
+  if (!output_file) { fprintf(stderr,"No output file specified.\n"); usage(); }
+  if (!glyph_count) { fprintf(stderr,"No Unicode points specified.\n"); usage(); }
+  
+
   // Initialise unicode points we want to render.
-  int i;
-  int cn=0;
-  // normal ASCII characters
-  for(i=0x20;i<=0x7e;i++) unicode_points[cn++]=i;
-  // Latin extended characters
-//  for(i=0xa1;i<=0xac;i++) unicode_points[cn++]=i;
-//  for(i=0xae;i<=0xff;i++) unicode_points[cn++]=i;
-  // Hebrew alphabet
-  for(i=0x5d0;i<=0x5df;i++) unicode_points[cn++]=i;
-//  for(i=0x5d0;i<=0x5f4;i++) unicode_points[cn++]=i;
-  // Maths
-  // for(i=0x2200;i<=0x22ff;i++) unicode_points[cn++]=i;
-  printf("Defined %d unicode points\n",cn);
-  glyph_count=cn;
+  printf("Defined %d unicode points\n",glyph_count);
 
 
   FT_Library    library;
@@ -71,19 +146,7 @@ main( int     argc,
   FT_GlyphSlot  slot;
   FT_Error      error;
 
-  char*         filename;
-  char*         text;
-
   int           n;
-
-  if ( argc < 3 )
-  {
-    fprintf ( stderr, "usage: %s <font.ttf> <point size of rasterised output> [output file]\n", argv[0] );
-    exit( 1 );
-  }
-
-  filename      = argv[1];                           /* first argument     */
-  text          = (argc==3)?"Q":argv[3];
 
   error = FT_Init_FreeType( &library );              /* initialize library */
   /* error handling omitted */
@@ -91,16 +154,13 @@ main( int     argc,
   error = FT_New_Face( library, filename, 0, &face );/* create face object */
   /* error handling omitted */
 
-  error = FT_Set_Pixel_Sizes( face, atoi(argv[2]), atoi(argv[2]));
+  error = FT_Set_Pixel_Sizes( face, font_size, font_size);
   /* error handling omitted */
 
   slot = face->glyph;
 
   for ( n = 0; n < glyph_count; n++ )
   {
-    /* load glyph image into the slot (erase previous one) */
-    // error = FT_Load_Char( face, text[n], FT_LOAD_RENDER );
-
     // Convert unicode point to glyph index
     int glyph_index = FT_Get_Char_Index( face, unicode_points[n] );
     // read glyph by index
@@ -217,11 +277,10 @@ main( int     argc,
   font_data[0x85]=(tile_array_start>>8)&0xff;
   font_data[0x86]=(tile_array_start>>16)&0xff;
   // Copy tiles into place
-  for(i=0;i<card_count;i++) bcopy(cards[i],&font_data[tile_array_start+i*64],64);
+  for(int i=0;i<card_count;i++) bcopy(cards[i],&font_data[tile_array_start+i*64],64);
   int font_file_size=tile_array_start+64*card_count;
-  int font_points=atoi(argv[2]);
-  font_data[0x87]=font_points&0xff;
-  font_data[0x88]=(font_points>>8)&0xff;
+  font_data[0x87]=font_size&0xff;
+  font_data[0x88]=(font_size>>8)&0xff;
   // 8 bits per pixel
   font_data[0x89]=8;
   // slant, bold, underline and other flags (2 bytes allowed)
@@ -230,20 +289,20 @@ main( int     argc,
   
   // $00A0-$00BF - style (eg bold, italic, condensed) of font
   if (face->style_name) {
-    for(i=0;i<32;i++)
+    for(int i=0;i<32;i++)
       if (face->style_name[i]) font_data[0xa0+i]=face->style_name[i];
       else break;
   }
 
   // $00c0 - $00ff - name of font (upto 64 bytes)
   if (face->family_name) {
-    for(i=0;i<64;i++)
+    for(int i=0;i<64;i++)
       if (face->family_name[i]) font_data[0xc0+i]=face->family_name[i];
       else break;
   }
 
   int unique_reused=0;
-  for(i=0;i<card_count;i++) if (card_reused[i]) unique_reused++;
+  for(int i=0;i<card_count;i++) if (card_reused[i]) unique_reused++;
   printf("%d Unique cards were used %d times (%d more than once) to encode %d of %d requested glyphs\n",
 	 card_count,card_count+reuses,unique_reused,rendered,glyph_count);
   printf("Tile map start = %d ($%x)\n",tile_map_start,tile_map_start);
@@ -251,20 +310,23 @@ main( int     argc,
   printf("Tile array size = %d ($%x)\n",64*card_count,64*card_count);
   printf("Total font file size = %d ($%x)\n",font_file_size,font_file_size);
 
-  if (argv[3]) {
-    FILE *f=fopen(argv[3],"w");
+  if (output_file) {
+    FILE *f=fopen(output_file,"w");
     if (!f) {
-      printf("Failed to open font output file '%s'\n",argv[3]);
+      printf("Failed to open font output file '%s'\n",output_file);
       exit(-1);
     }
     unsigned char oh8oh1[2]={0x01,0x08};
     fwrite(oh8oh1,2,1,f);
     int r=fwrite(font_data,font_file_size,1,f);
     if (r!=1) {
-      printf("Failed to write font data to '%s'\n",argv[3]);
+      printf("Failed to write font data to '%s'\n",output_file);
       exit(-1);
     }
     fclose(f);    
+  } else {
+    fprintf(stderr,"WARNING: No output file specified, so no output written.\n");
+    exit(0);
   }
 
   FT_Done_Face    ( face );

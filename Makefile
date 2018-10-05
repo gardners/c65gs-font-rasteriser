@@ -1,4 +1,4 @@
-all:	freetype-test pngtotiles
+all:	ttftof65 pngtotiles
 
 /usr/bin/freetype-config:
 	echo "You need to install libfreetype. Try something like:"
@@ -8,8 +8,8 @@ all:	freetype-test pngtotiles
 	echo "You need to install libpng. Try something like:"
 	echo "    sudo apt-get install libpng-dev"
 
-freetype-test:	freetype-test.c Makefile
-	gcc -g -Wall -o ft freetype-test.c `freetype-config --cflags --libs`
+ttftof65:	ttftof65.c utf8_decode.c utf8_decode.h Makefile
+	gcc -g -Wall -o ttftof65 ttftof65.c utf8_decode.c `freetype-config --cflags --libs`
 
 pngtotiles:	pngtotiles.c Makefile
 	gcc -g -Wall `libpng-config --cflags --libs` -o pngtotiles pngtotiles.c -lpng
