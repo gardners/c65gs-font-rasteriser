@@ -78,7 +78,7 @@ main( int     argc,
 
   if ( argc < 3 )
   {
-    fprintf ( stderr, "usage: %s <font.ttf> <size>\n", argv[0] );
+    fprintf ( stderr, "usage: %s <font.ttf> <point size of rasterised output> [output file]\n", argv[0] );
     exit( 1 );
   }
 
