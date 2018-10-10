@@ -3,6 +3,10 @@
 #include <math.h>
 #include <stdint.h>
 #include <unistd.h>
+#include <assert.h>
+#define STRINGIFY_EX(x) STRINGIFY(x)
+#define STRINGIFY(x) #x
+#define TEST_POINT(x) printf(STRINGIFY_EX(__FILE__)":"STRINGIFY_EX(__LINE__)":"STRINGIFY(x)"\n")
 
 unsigned char magic_header[128] = {
   0x2d, 0x08, 0x0a, 0x00, 0x99, 0x22, 0x54,
@@ -164,29 +168,46 @@ int main(int argc, char **argv)
             printf("Under rows: %zu\n", (size_t)under_rows);
             uint8_t char_columns = *++tile;
             printf("Char columns: %zu\n", (size_t)char_columns);
-            uint8_t display_width = 8-*++tile;
+            uint8_t display_width = *++tile;
             printf("Display width: %zu\n", (size_t)display_width);
-            for (int y = char_rows-1; y >= -under_rows; --y)
-                for (int x = 0; x < char_columns; ++x)
+            ++tile;
+
+            size_t glyph_height = 8 * (char_rows + under_rows);
+            printf("Glyph height: %zu\n", glyph_height);
+            size_t glyph_width = 8 * char_columns;
+            printf("Glyph width: %zu\n", glyph_width);
+            printf("Renderd glyph width: %zu\n", glyph_width-display_width);
+            size_t glyph_size = glyph_height * glyph_width;
+            printf("Glyph size: %zu\n", glyph_size);
+            uint8_t *glyph = malloc(glyph_size);
+            if (!glyph)
+            {
+                printf("Failed to allocate memory for glyph\n");
+                exit(1);
+            }
+            for (size_t y = 0; y < glyph_size; y += glyph_width * 8)
+                for (size_t x = 0; x < glyph_width; x += 8)
                 {
-                    ++tile;
                     uint16_t card_number = tile[0] | (tile[1] << 8);
-                    ++tile;
-                    uint8_t card[64];
-                    bcopy(&tile_array[card_number * 64], card, 64);
-                    printf("Card number: 0x%zX\n", card_number);
-                    for (int i = 0; i < 8; ++i)
-                    {
-                        for (int j = 0; j < display_width; ++j)
-                        {
-                            if (card[j+(i*8)])
-                                printf("*");
-                            else
-                                printf(" ");
-                        }
-                        printf("\n");
-                    }
+                    tile += 2;
+                    for (size_t y2 = 0; y2 < 8; ++y2)
+                        bcopy(&tile_array[(card_number * 64) + (y2 * 8)],
+                            &glyph[x + y + (y2 * glyph_width)], 8);
                 }
+            printf("Glyph:\n");
+            for (size_t y = 0; y < glyph_size; y += glyph_width)
+            {
+                for (size_t x = 0; x < glyph_width; ++x)
+                {
+                    if (glyph[x+y])
+                        printf("*");
+                    else
+                        printf(" ");
+                }
+                printf("\n");
+            }
+
+            free(glyph);
         }
         printf("Type a character to test: ");
         scanf("%20s", character);
