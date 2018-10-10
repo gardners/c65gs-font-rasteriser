@@ -106,23 +106,30 @@ main( int     argc,
       /* Read UTF8 text file to get a set of points to read it from */
       {
 	FILE *f=fopen(optarg,"r");
-	if (!f) {
-	  fprintf(stderr,"Could not open '%s' for reading UTF8 text.\n",optarg);
-	  usage();
-	}
 	char line[1024];
-	line[0]=0; fgets(line,1024,f);
-	while (line[0]) {
-	  utf8_decode_init(line,strlen(line));
+	if (!f) {
+	  fprintf(stderr,"Could not open '%s' for reading UTF8 text: Assuming it is text\n",optarg);
+	  utf8_decode_init(optarg,strlen(optarg));
 	  int code_point=utf8_decode_next();
 	  while ((code_point!=UTF8_END)&&(code_point!=UTF8_ERROR))
 	    {
 	      add_code_point(code_point);
 	      code_point=utf8_decode_next();
 	    }
+	} else {
 	  line[0]=0; fgets(line,1024,f);
+	  while (line[0]) {
+	    utf8_decode_init(line,strlen(line));
+	    int code_point=utf8_decode_next();
+	    while ((code_point!=UTF8_END)&&(code_point!=UTF8_ERROR))
+	      {
+		add_code_point(code_point);
+		code_point=utf8_decode_next();
+	      }
+	    line[0]=0; fgets(line,1024,f);
+	  }
+	  fclose(f);
 	}
-	fclose(f);
       }
       break;
     default: /* '?' */
@@ -186,15 +193,16 @@ main( int     argc,
       if (0) printf("Character is %dx%d cards above, and includes %d pixels to the left. bitmap_top=%d\n",
 		    char_columns,char_rows,blank_pixels_to_left,slot->bitmap_top);
     }
-    if (slot->bitmap_top-slot->bitmap.rows<0) {
+    if (0) printf("bitmap_top=%d, bitmap.rows=%d\n",slot->bitmap_top,slot->bitmap.rows);
+    if (slot->bitmap_top<slot->bitmap.rows) {
       // Character has underhang as well
       int underhang=slot->bitmap.rows-slot->bitmap_top;
       under_rows=underhang/8;
       if (underhang%8) under_rows++;
       under_columns=(slot->bitmap_left+slot->bitmap.width+1)/8;
       if ((slot->bitmap_left+slot->bitmap.width)%8) under_columns++;
-      if (0) printf("Character is %dx%d cards under, and includes %d pixels to the left.\n",
-	     under_columns,under_rows,blank_pixels_to_left);
+      if (0) printf("Character is %dx%d cards under (underhang=%d), and includes %d pixels to the left.\n",
+		    under_columns,under_rows,underhang,blank_pixels_to_left);
     }
 
     int x,y;
