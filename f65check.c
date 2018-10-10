@@ -151,9 +151,7 @@ int main(int argc, char **argv)
         for (point = 0; point < unicode_points_size; point += 5)
             if (unicode_points[point] == character[0]) break;
         printf("Character offset: 0x%zX\n", point);
-        if (point > unicode_points_size)
-            printf("Character not in unicode point list\n");
-        else
+        if (point < unicode_points_size)
         {
             size_t tile_map_offset = unicode_points[point + 2]
                 | (unicode_points[point + 3] << 8)
@@ -209,6 +207,7 @@ int main(int argc, char **argv)
 
             free(glyph);
         }
+        else printf("Character not in unicode point list\n");
         printf("Type a character to test: ");
         scanf("%20s", character);
     }
