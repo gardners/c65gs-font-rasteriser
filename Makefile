@@ -1,4 +1,4 @@
-all:	ttftof65 pngtotiles
+all:	ttftof65 pngtotiles f65check
 
 /usr/bin/freetype-config:
 	echo "You need to install libfreetype. Try something like:"
