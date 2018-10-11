@@ -226,7 +226,8 @@ main( int     argc,
 	   (int)slot->metrics.horiAdvance,char_columns);
     
     // Record number of pixels to trim from right-most tile
-    glyph_tile_map[gtm_len++]=(~glyph_display_width)&7;  
+    int trim_pixels=(~glyph_display_width)&7;  
+    glyph_tile_map[gtm_len++]=trim_pixels;
 
     // Now build the glyph map
 
@@ -239,8 +240,13 @@ main( int     argc,
 	    exit(-1);
 	  } else {
 	    printf("  encoding tile (%d,%d) using card #%d\n",x,y,card_number);	  
-	    glyph_tile_map[gtm_len++]=card_number&0xff;	  
-	    glyph_tile_map[gtm_len++]=(card_number>>8)&0xff;	  
+	    glyph_tile_map[gtm_len++]=card_number&0xff;
+	    // Also encode trim pixels for right-most column, so that we don't have
+	    // to apply them during rendering
+	    if (x==(char_columns-1))
+	      glyph_tile_map[gtm_len++]=((card_number>>8)&0xff)|(trim_pixels<<5);
+	    else
+	      glyph_tile_map[gtm_len++]=(card_number>>8)&0xff;	  
 	  }
 	}
     printf("  %d bytes used for glyph map.\n",gtm_len);
