@@ -4,9 +4,13 @@
 #include <stdint.h>
 #include <unistd.h>
 #include <assert.h>
+
+#define MAX_POINTS 0x4000
+#define MAX_CARDS 0x10000
+
 #define STRINGIFY_EX(x) STRINGIFY(x)
 #define STRINGIFY(x) #x
-#define TEST_POINT(x) printf(STRINGIFY_EX(__FILE__)":"STRINGIFY_EX(__LINE__)":"STRINGIFY(x)"\n")
+#define TEST_POINT(x, y) printf(STRINGIFY_EX(__FILE__)":"STRINGIFY_EX(__LINE__)":"x"\n", y)
 
 unsigned char magic_header[128] = {
   0x2d, 0x08, 0x0a, 0x00, 0x99, 0x22, 0x54,
@@ -187,6 +191,8 @@ int main(int argc, char **argv)
                 for (size_t x = 0; x < glyph_width; x += 8)
                 {
                     uint16_t card_number = tile[0] | (tile[1] << 8);
+                    // trim_bits = card_number >> 12;
+                    card_number &= 0x0FFF;
                     tile += 2;
                     for (size_t y2 = 0; y2 < 8; ++y2)
                         bcopy(&tile_array[(card_number * 64) + (y2 * 8)],
