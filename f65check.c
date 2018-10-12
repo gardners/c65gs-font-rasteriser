@@ -31,6 +31,8 @@ unsigned char magic_header[128] = {
   0x00, 0x00, 0xff, 0xff, 0xff, 0xff, 0xff
 };
 
+char character[] = {0, 0, 0};
+
 void usage()
 {
     fprintf(stderr, "useage: f65check -f <f65 file>\n");
@@ -50,7 +52,7 @@ int main(int argc, char **argv)
     char *filename = NULL;
     FILE *file = NULL;
 
-    while ((opt = getopt(argc, argv, "f:")) != -1)
+    while ((opt = getopt(argc, argv, "f:st:")) != -1)
     {
         switch(opt)
         {
@@ -62,6 +64,12 @@ int main(int argc, char **argv)
                     usage();
                 }
             } break;
+            case 't': {
+                character[0] = optarg[0];
+            } break;
+            case 's': {
+                character[0] = ' ';
+            }
         }
     }
     if (file == NULL) usage();
@@ -145,9 +153,11 @@ int main(int argc, char **argv)
     // for (size_t i = 0; i < tile_array_size; ++i)
     //     printf("0x%zX ", tile_array[i]);
 
-    char character[21];
-    printf("Type a character to test: ");
-    scanf("%20s", character);
+    if (character[0] == 0)
+    {
+        printf("Type a character to test: ");
+        scanf("%2s", character);
+    }
     while (character[0] != 27 && character[0] != 0)
     {
         printf("Character: 0x%zX\n", (size_t)character[0]);
