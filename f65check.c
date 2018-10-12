@@ -180,15 +180,15 @@ int main(int argc, char **argv)
             printf("Under rows: %zu\n", (size_t)under_rows);
             uint8_t char_columns = *++tile;
             printf("Char columns: %zu\n", (size_t)char_columns);
-            uint8_t display_width = *++tile;
-            printf("Display width: %zu\n", (size_t)display_width);
+            uint8_t trim_pixels = *++tile;
+            printf("Trim pixels: %zu\n", (size_t)trim_pixels);
             ++tile;
 
             size_t glyph_height = 8 * (char_rows + under_rows);
             printf("Glyph height: %zu\n", glyph_height);
             size_t glyph_width = 8 * char_columns;
             printf("Glyph width: %zu\n", glyph_width);
-            printf("Renderd glyph width: %zu\n", glyph_width-display_width);
+            printf("Renderd glyph width: %zu\n", glyph_width-trim_pixels);
             size_t glyph_size = glyph_height * glyph_width;
             printf("Glyph size: %zu\n", glyph_size);
             uint8_t *glyph = malloc(glyph_size);
