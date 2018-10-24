@@ -305,6 +305,11 @@ main( int     argc,
   // slant, bold, underline and other flags (2 bytes allowed)
   font_data[0x8a]=face->style_flags&0xff;
   font_data[0x8b]=(face->style_flags>>8)&0xff;
+  // Size of font file
+  font_data[0x8c]=font_file_size&0xff;
+  font_data[0x8d]=(font_file_size>>8)&0xff;
+  font_data[0x8e]=(font_file_size>>16)&0xff;
+  font_data[0x8f]=(font_file_size>>24)&0xff;
   
   // $00A0-$00BF - style (eg bold, italic, condensed) of font
   if (face->style_name) {
