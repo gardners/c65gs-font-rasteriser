@@ -16,3 +16,6 @@ pngtotiles:	pngtotiles.c Makefile
 
 f65check:	f65check.c Makefile
 	gcc -g -Wall -o f65check f65check.c
+
+f65patch:	f65patch.c Makefile
+	gcc -g -Wall -o $@ $<
